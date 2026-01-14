@@ -27,13 +27,16 @@ const SKIP_DIRS: &[&str] = &[
 /// Check if entry should be skipped based on directory name
 #[inline]
 fn should_skip_entry(entry: &DirEntry) -> bool {
-    if let Some(file_type) = entry.file_type()
-        && file_type.is_dir()
-        && let Some(name) = entry.file_name().to_str()
-    {
-        return SKIP_DIRS.contains(&name);
+    let Some(file_type) = entry.file_type() else {
+        return false;
+    };
+    if !file_type.is_dir() {
+        return false;
     }
-    false
+    let Some(name) = entry.file_name().to_str() else {
+        return false;
+    };
+    SKIP_DIRS.contains(&name)
 }
 
 /// Check if path contains any skip directories
@@ -91,17 +94,19 @@ pub fn walk_files(base: &Path, config: &WalkConfig) -> Vec<String> {
             }
 
             // Get relative path (always use forward slashes for consistency)
-            if let Ok(rel_path) = entry.path().strip_prefix(base)
-                && let Some(s) = rel_path.to_str()
-            {
-                // Normalize to forward slashes on Windows
-                #[cfg(windows)]
-                let s: String = s.replace('\\', "/");
-                #[cfg(not(windows))]
-                let s: &str = s;
-                if !path_contains_skip_dir(s) {
-                    let _ = tx.send(s.to_string());
-                }
+            let Ok(rel_path) = entry.path().strip_prefix(base) else {
+                return WalkState::Continue;
+            };
+            let Some(s) = rel_path.to_str() else {
+                return WalkState::Continue;
+            };
+            // Normalize to forward slashes on Windows
+            #[cfg(windows)]
+            let s: String = s.replace('\\', "/");
+            #[cfg(not(windows))]
+            let s: &str = s;
+            if !path_contains_skip_dir(s) {
+                let _ = tx.send(s.to_string());
             }
 
             WalkState::Continue
@@ -244,5 +249,39 @@ mod tests {
         // Should include both the directory and the file
         assert!(paths.iter().any(|p| p == "src"));
         assert!(paths.iter().any(|p| p == "src/main.rs"));
+    }
+
+    // Unit tests for path_contains_skip_dir
+    #[test]
+    fn test_path_contains_skip_dir_starts_with() {
+        // Tests: path.starts_with(skip) && path.as_bytes().get(skip.len()) == Some(&b'/')
+        assert!(path_contains_skip_dir(".git/config"));
+        assert!(path_contains_skip_dir("node_modules/pkg/index.js"));
+        assert!(path_contains_skip_dir("target/debug/binary"));
+    }
+
+    #[test]
+    fn test_path_contains_skip_dir_middle() {
+        // Tests: path.contains(&format!("/{skip}/"))
+        assert!(path_contains_skip_dir("foo/.git/config"));
+        assert!(path_contains_skip_dir("src/node_modules/pkg"));
+        assert!(path_contains_skip_dir("a/b/target/c/d"));
+    }
+
+    #[test]
+    fn test_path_contains_skip_dir_exact() {
+        // Tests: path == *skip
+        assert!(path_contains_skip_dir(".git"));
+        assert!(path_contains_skip_dir("node_modules"));
+        assert!(path_contains_skip_dir("target"));
+    }
+
+    #[test]
+    fn test_path_contains_skip_dir_false() {
+        // Should not match
+        assert!(!path_contains_skip_dir("src/main.rs"));
+        assert!(!path_contains_skip_dir("gitignore")); // doesn't start with .git/
+        assert!(!path_contains_skip_dir(".github/workflows")); // .github != .git
+        assert!(!path_contains_skip_dir("my_target/foo")); // my_target != target
     }
 }

@@ -53,11 +53,19 @@ jobs:
       - name: Generate coverage
         run: cargo llvm-cov --all-features --lcov --output-path lcov.info
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cargo llvm-cov --json --summary-only 2>/dev/null | jq '.data[0].totals.lines.percent')
+          echo "Line coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 95" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below 95% threshold"
+            exit 1
+          fi
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          files: lcov.info
-          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     name: Lint
