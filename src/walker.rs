@@ -90,12 +90,18 @@ pub fn walk_files(base: &Path, config: &WalkConfig) -> Vec<String> {
                 return WalkState::Skip;
             }
 
-            // Get relative path
+            // Get relative path (always use forward slashes for consistency)
             if let Ok(rel_path) = entry.path().strip_prefix(base)
                 && let Some(s) = rel_path.to_str()
-                && !path_contains_skip_dir(s)
             {
-                let _ = tx.send(s.to_string());
+                // Normalize to forward slashes on Windows
+                #[cfg(windows)]
+                let s: String = s.replace('\\', "/");
+                #[cfg(not(windows))]
+                let s: &str = s;
+                if !path_contains_skip_dir(s) {
+                    let _ = tx.send(s.to_string());
+                }
             }
 
             WalkState::Continue

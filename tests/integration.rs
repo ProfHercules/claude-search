@@ -189,7 +189,13 @@ fn test_invalid_json_exits_cleanly() {
 
 #[test]
 fn test_nonexistent_directory() {
-    let output = run_claude_search("foo", "/nonexistent/path/12345");
+    // Use a path that doesn't exist on any platform
+    let nonexistent = if cfg!(windows) {
+        "C:\\nonexistent_path_12345\\does_not_exist"
+    } else {
+        "/nonexistent/path/12345"
+    };
+    let output = run_claude_search("foo", nonexistent);
 
     // Should return empty (silent failure)
     assert!(

@@ -1,7 +1,7 @@
 # claude-search
 
-[![CI](https://github.com/ProfHercules/claude-search/actions/workflows/ci.yml/badge.svg)](https://github.com/ProfHercules/claude-search/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/ProfHercules/claude-search/branch/main/graph/badge.svg)](https://codecov.io/gh/ProfHercules/claude-search)
+[![CI](https://github.com/ProfHercules/claude-search/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ProfHercules/claude-search/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ProfHercules/claude-search/graph/badge.svg)](https://codecov.io/gh/ProfHercules/claude-search)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A fast file suggestion tool for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), written in Rust.
