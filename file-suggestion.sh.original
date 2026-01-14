@@ -1,0 +1,69 @@
+#!/bin/bash
+# Custom file suggestion script for Claude Code
+# Uses fd + fzf for fast fuzzy file/directory matching
+
+input=$(cat)
+query=$(echo "$input" | jq -r '.query // ""')
+cwd=$(echo "$input" | jq -r '.cwd // "."')
+
+cd "$cwd" 2>/dev/null || exit 0
+
+search_base="."
+search_pattern="$query"
+output_prefix=""
+
+# Handle relative path prefixes (../, ../../, etc.)
+if [[ "$query" =~ ^((\.\./)+) ]]; then
+    output_prefix="${BASH_REMATCH[1]}"
+    search_base="${output_prefix%/}"
+    search_pattern="${query#$output_prefix}"
+fi
+search_pattern="${search_pattern#./}"
+
+# Directories to skip
+SKIP=".git,node_modules,.venv,__pycache__,.mypy_cache,.cache,dist,build,.next,target,.tox,.pytest_cache"
+
+# Format output: strip ./ and search_base prefix, add output_prefix
+format() {
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        p="${p#./}"
+        [[ "$search_base" != "." ]] && p="${p#$search_base/}"
+        printf '%s\n' "${output_prefix}${p}"
+    done
+}
+
+# Use fd for file listing (much faster than find)
+if command -v fd &>/dev/null; then
+    fd_cmd="fd"
+elif command -v fdfind &>/dev/null; then
+    fd_cmd="fdfind"
+else
+    fd_cmd=""
+fi
+
+if [[ -n "$search_pattern" ]]; then
+    if [[ -n "$fd_cmd" ]]; then
+        $fd_cmd --type f --type d --hidden --no-ignore-vcs --max-depth 6 \
+            --exclude .git --exclude node_modules --exclude .venv \
+            --exclude __pycache__ --exclude .mypy_cache --exclude .cache \
+            --exclude dist --exclude build --exclude .next --exclude target \
+            . "$search_base" 2>/dev/null | \
+            fzf --filter="$search_pattern" --scheme=path 2>/dev/null | head -50 | format
+    else
+        find "$search_base" -maxdepth 6 \( -type f -o -type d \) \
+            -not -path '*/.git/*' -not -path '*/node_modules/*' \
+            -not -path '*/.venv/*' -not -path '*/__pycache__/*' 2>/dev/null | \
+            fzf --filter="$search_pattern" --scheme=path 2>/dev/null | head -50 | format
+    fi
+else
+    # No pattern - list shallow contents
+    if [[ -n "$fd_cmd" ]]; then
+        $fd_cmd --type f --type d --hidden --no-ignore-vcs --max-depth 2 \
+            --exclude .git --exclude node_modules --exclude .venv \
+            . "$search_base" 2>/dev/null | head -50 | format
+    else
+        find "$search_base" -maxdepth 2 \( -type f -o -type d \) \
+            -not -path '*/.git/*' -not -path '*/node_modules/*' 2>/dev/null | head -50 | format
+    fi
+fi
