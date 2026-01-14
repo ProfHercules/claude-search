@@ -4,7 +4,9 @@ use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
 fn run_claude_search(query: &str, cwd: &str) -> String {
-    let input = format!(r#"{{"query": "{}", "cwd": "{}"}}"#, query, cwd);
+    // Escape backslashes for JSON (Windows paths)
+    let cwd_escaped = cwd.replace('\\', "\\\\");
+    let input = format!(r#"{{"query": "{}", "cwd": "{}"}}"#, query, cwd_escaped);
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_claude-search"))
         .stdin(Stdio::piped())
