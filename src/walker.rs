@@ -100,13 +100,10 @@ pub fn walk_files(base: &Path, config: &WalkConfig) -> Vec<String> {
             let Some(s) = rel_path.to_str() else {
                 return WalkState::Continue;
             };
-            // Normalize to forward slashes on Windows
-            #[cfg(windows)]
-            let s: String = s.replace('\\', "/");
-            #[cfg(not(windows))]
-            let s: &str = s;
-            if !path_contains_skip_dir(s) {
-                let _ = tx.send(s.to_string());
+            // Normalize to forward slashes (no-op on Unix, converts \ on Windows)
+            let s = s.replace('\\', "/");
+            if !path_contains_skip_dir(&s) {
+                let _ = tx.send(s);
             }
 
             WalkState::Continue
