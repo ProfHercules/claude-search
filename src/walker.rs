@@ -27,12 +27,11 @@ const SKIP_DIRS: &[&str] = &[
 /// Check if entry should be skipped based on directory name
 #[inline]
 fn should_skip_entry(entry: &DirEntry) -> bool {
-    if let Some(file_type) = entry.file_type() {
-        if file_type.is_dir() {
-            if let Some(name) = entry.file_name().to_str() {
-                return SKIP_DIRS.contains(&name);
-            }
-        }
+    if let Some(file_type) = entry.file_type()
+        && file_type.is_dir()
+        && let Some(name) = entry.file_name().to_str()
+    {
+        return SKIP_DIRS.contains(&name);
     }
     false
 }
@@ -44,7 +43,7 @@ fn path_contains_skip_dir(path: &str) -> bool {
         if path.starts_with(skip) && path.as_bytes().get(skip.len()) == Some(&b'/') {
             return true;
         }
-        if path.contains(&format!("/{}/", skip)) {
+        if path.contains(&format!("/{skip}/")) {
             return true;
         }
         if path == *skip {
@@ -92,12 +91,11 @@ pub fn walk_files(base: &Path, config: &WalkConfig) -> Vec<String> {
             }
 
             // Get relative path
-            if let Ok(rel_path) = entry.path().strip_prefix(base) {
-                if let Some(s) = rel_path.to_str() {
-                    if !path_contains_skip_dir(s) {
-                        let _ = tx.send(s.to_string());
-                    }
-                }
+            if let Ok(rel_path) = entry.path().strip_prefix(base)
+                && let Some(s) = rel_path.to_str()
+                && !path_contains_skip_dir(s)
+            {
+                let _ = tx.send(s.to_string());
             }
 
             WalkState::Continue
